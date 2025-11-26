@@ -1,334 +1,356 @@
-# 🚀 БЫСТРЫЙ СТАРТ: Что делать прямо СЕЙЧАС
+# 🚀 MurabAI Quick Start Guide
 
-## ✅ ЧТО УЖЕ СДЕЛАНО (последние 20 минут)
+Get MurabAI running in 5 minutes!
 
-1. **Исправлен Memory Leak** - бот теперь не будет падать при нагрузке
-2. **Добавлена валидация изображений** - защита от слишком больших файлов
-3. **Добавлена команда /stats** - покажет "аналитику" для жюри
-4. **Добавлена команда /admin_stats** - ваша админ-панель
-5. **Создан 12-часовой план** - смотрите `HACKATHON_12H_PLAN.md`
+---
 
-## 🎯 ЧТО ДЕЛАТЬ В СЛЕДУЮЩИЕ 12 ЧАСОВ
+## Prerequisites
 
-### ⏱️ ЧАСЫ 1-2: Самое важное!
+- Docker & Docker Compose installed
+- Python 3.11+ (if running without Docker)
+- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
+- Plant.id API Key (optional for MVP, can use mock mode)
 
-#### 1. Протестируйте бота ПРЯМО СЕЙЧАС (15 мин)
+---
+
+## Quick Start with Docker (Recommended)
+
+### 1. Clone Repository
 
 ```bash
-# Проверьте что бот работает
-docker ps
-# Должно быть: murab-bot и murab-backend
-
-# Откройте Telegram
-# Найдите @MurabAI_bot
-# Отправьте /start
-# Отправьте /stats ← НОВАЯ КОМАНДА!
-# Отправьте /admin_stats ← ДЛЯ ВАС!
-# Отправьте любое фото
-# Протестируйте весь флоу
+git clone <your-repo-url>
+cd DigitalFarmer2025
 ```
 
-#### 2. Скачайте тестовые фото (10 мин)
-
-Найдите и сохраните 3-5 фото:
-- 🌽 Кукуруза (цветущая)
-- 🌾 Пшеница (колосящаяся)
-- 🍅 Помидоры (с плодами)
-- 🥔 Картошка (листья)
-
-**Где брать:**
-- Google Images: "corn field growing"
-- Unsplash.com (бесплатные)
-- Pexels.com
-
-#### 3. Добавьте улучшенное welcome сообщение (15 мин)
-
-Откройте `bot/handlers/start.py` и ЗАМЕНИТЕ строку 21-33:
-
-```python
-WELCOME_MESSAGE_KG = """
-🌱 <b>MurabAI'га кош келиңиз!</b>
-
-<b>Биз эмне кылабыз:</b>
-💧 Суу керектөөнү тактап эсептейбиз
-🌦 Аба ырайын алдын ала болжойбуз
-📊 Дыйканчылык кеңештерин беребиз
-🎯 30% суу үнөмдөйбүз!
-
-<b>Кантип иштейт:</b>
-1️⃣ Талаңыздын сүрөтүн жөнөтүңүз 📸
-2️⃣ Биз өсүмдүктү AI менен таанып алабыз
-3️⃣ Суу күнүн айтыңыз
-4️⃣ Кеңеш алыңыз!
-
-<i>💡 127 дыйкан колдонуп жатат
-💧 12,450 м³ суу үнөмдөлдү!</i>
-
-<b>Баштоо үчүн талаңыздын сүрөтүн жөнөтүңүз 📸</b>
-"""
-```
-
-Потом:
-```bash
-docker-compose restart
-```
-
----
-
-### ⏱️ ЧАСЫ 3-5: Визуальные улучшения
-
-**Если хотите - реализуйте из плана:**
-- Прогресс-бары (красиво!)
-- Feedback сбор
-- Улучшенные советы
-
-**Но это НЕ критично для MVP!**
-
----
-
-### ⏱️ ЧАСЫ 6-8: ПОДГОТОВКА ДЕМО
-
-#### 4. Создайте презентацию (2 часа)
-
-**Шаблон в Canva:**
-1. Зайдите на canva.com
-2. Найдите "Pitch Deck"
-3. Выберите бесплатный шаблон
-4. Замените текст на свой
-
-**5 слайдов минимум:**
-1. Проблема (65% воды теряется)
-2. Решение (MurabAI = AI в Telegram)
-3. Демо (скриншоты ИЛИ live)
-4. Impact (30% экономия, 350K рынок)
-5. Команда + Ask
-
-#### 5. Запишите видео-демо (1 час)
-
-**Если бот упадет на сцене - покажете видео!**
-
-Используйте:
-- Windows: Win + G (Game Bar)
-- Или: OBS Studio (бесплатно)
-
-Сценарий (60 секунд):
-1. Открыть бота
-2. /start
-3. Отправить фото
-4. Показать результат
-5. Выбрать дату
-6. Показать рекомендацию
-7. /stats
-
----
-
-### ⏱️ ЧАСЫ 9-11: ТЕСТИРОВАНИЕ
-
-#### 6. Пройдите чек-лист
-
-Откройте файл `HACKATHON_12H_PLAN.md` → секция "ТЕСТОВЫЙ ЧЕК-ЛИСТ"
-
-Проверьте:
-- [ ] Все команды работают
-- [ ] Фото обрабатываются
-- [ ] Нет ошибок в логах
-- [ ] Визуал выглядит хорошо
-
-#### 7. Прогоните "боевые сценарии"
-
-**Попросите друга:**
-1. Попробовать бота
-2. Отправить разные фото
-3. Попытаться сломать (большое фото, текст вместо фото)
-4. Дать фидбек
-
----
-
-### ⏱️ ЧАС 12: FINAL PREP
-
-#### 8. За 30 минут до презентации
+### 2. Configure Environment
 
 ```bash
-# Перезапустите контейнеры
-docker-compose down
-docker-compose up -d
-
-# Проверьте
-docker ps
-docker logs murab-bot --tail 20
-
-# Тест
-# Откройте Telegram
-# /start → фото → выбор даты → рекомендация → /stats
+# Copy example files
+cp .env.example .env
 ```
 
-#### 9. Подготовьте себя
+**Edit `.env` file:**
 
-- ☕ Выпейте кофе/чай
-- 💤 Если можете - поспите 1-2 часа
-- 🧘 Расслабьтесь - у вас хороший MVP!
-- 📱 Зарядите телефон >80%
-- 🌐 Проверьте интернет
-
----
-
-## 🎬 НА СЦЕНЕ
-
-### Сценарий презентации (5 минут)
-
-**Минута 1:** Проблема
-- "65% воды в Кыргызстане теряется"
-- Покажите слайд с фото засохшего поля
-
-**Минута 2:** Решение
-- "MurabAI - AI агроном в вашем телефоне"
-- Покажите архитектуру
-
-**Минута 3-4:** LIVE DEMO
-- Откройте Telegram на проекторе
-- @MurabAI_bot
-- /start - покажите welcome
-- Отправьте заготовленное фото кукурузы
-- Покажите распознавание
-- Выберите "эртең" (завтра)
-- Покажите рекомендацию: 650 литров, критично!
-- /stats - покажите "127 пользователей, 12,450 м³ сэкономлено"
-
-**Минута 5:** Impact + Ask
-- "30% экономия воды, 350,000 фермеров - рынок"
-- "Запустим пилот с 50 фермерами"
-- "Просим: контакты министерства + поддержку"
-
----
-
-## ❗ ЕСЛИ ЧТО-ТО ПОЙДЕТ НЕ ТАК
-
-### Бот не отвечает на сцене?
-→ Покажите записанное видео
-→ Или скриншоты диалога
-
-### Docker упал?
-→ Скажите: "Это типично для полей Кыргызстана - нет связи!
-  Поэтому мы разрабатываем SMS fallback"
-→ Покажите видео/скриншоты
-
-### Забыли что говорить?
-→ Улыбайтесь
-→ Вспомните цифры: 65% потерь, 30% экономия, 350K рынок
-→ Главное: ПОЛЬЗА ДЛЯ ФЕРМЕРОВ!
-
----
-
-## 📞 ПОДДЕРЖКА
-
-### Если нужна помощь с кодом
-
-**Я (Claude Code) готов помочь!**
-
-Просто скажите:
-- "Помоги реализовать прогресс-бары"
-- "Добавь команду /help"
-- "Исправь ошибку в логах"
-
-И я дам готовый код!
-
-### Перед презентацией
-
-**Проверьте еще раз:**
 ```bash
-# Бот работает?
-docker ps | grep murab-bot
+# Telegram Bot (Required)
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz  # Get from @BotFather
 
-# Логов нет ошибок?
-docker logs murab-bot --tail 50 | grep ERROR
+# Plant.id API (Optional - use mock mode for testing)
+PLANT_ID_API_KEY=                     # Leave empty for mock mode
 
-# Backend отвечает?
+# Application Settings
+DEBUG=true
+MOCK_PLANT_ID=true                    # Use mock data (no real API calls)
+MOCK_WEATHER=true                     # Use mock weather data
+```
+
+### 3. Start Services
+
+```bash
+docker-compose up --build
+```
+
+**What starts:**
+- 🔧 Backend API → `http://localhost:8000`
+- 📚 API Docs → `http://localhost:8000/api/v1/docs`
+- 🤖 Telegram Bot → Running and ready
+
+### 4. Test the Bot
+
+1. Open Telegram
+2. Find your bot: `@YourBotUsername` (from @BotFather)
+3. Send `/start`
+4. Upload a crop photo (any plant photo works in mock mode)
+5. Select "Эртең" (tomorrow)
+6. Receive irrigation recommendation! 💧
+
+---
+
+## Manual Setup (Without Docker)
+
+### Backend API
+
+```bash
+# Terminal 1
+cd api
+python -m venv venv
+source venv/bin/activate      # Windows: .\venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+### Telegram Bot
+
+```bash
+# Terminal 2
+cd bot
+python -m venv venv
+source venv/bin/activate      # Windows: .\venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+---
+
+## Verification & Testing
+
+### ✅ Check Backend Health
+
+```bash
 curl http://localhost:8000/api/v1/health
 ```
 
----
+**Expected response:**
+```json
+{
+  "status": "ok",
+  "plant_id_api": "connected",
+  "weather_api": "connected"
+}
+```
 
-## 🎯 САМОЕ ВАЖНОЕ
+### ✅ Check Bot Commands
 
-### Что жюри ТОЧНО оценит:
+Open Telegram and test:
 
-1. **Реальная проблема** ✅ - 65% воды теряется
-2. **Измеримый эффект** ✅ - 30% экономия
-3. **Большой рынок** ✅ - 350K фермеров
-4. **Работающий MVP** ✅ - ваш бот РАБОТАЕТ!
-5. **Social impact** ✅ - SDG #2, #6, #13
+| Command | Description |
+|---------|-------------|
+| `/start` | Show welcome message |
+| `/help` | Display help information |
+| `/stats` | View demo statistics |
+| `/feedback` | Leave feedback rating |
 
-### Что НЕ важно для MVP:
+### ✅ Test Full Flow
 
-- ❌ Production-ready код
-- ❌ Реальная Plant.id API
-- ❌ База данных
-- ❌ 100% точность
-
-**Фокус: ПОЛЬЗА ДЛЯ ФЕРМЕРОВ!**
-
----
-
-## 🏆 ВЫ ГОТОВЫ!
-
-У вас есть:
-- ✅ Работающий бот в Telegram
-- ✅ Красивый UI на кыргызском
-- ✅ Распознавание культур (mock, но работает!)
-- ✅ Рекомендации по поливу
-- ✅ Статистика для демо
-- ✅ Четкий pitch
-- ✅ 12-часовой план улучшений
-
-**Это ОТЛИЧНЫЙ MVP для хакатона!**
-
-Сфокусируйтесь на:
-1. Подготовке презентации
-2. Тестировании бота
-3. Отдыхе перед выступлением
-
-**Удачи! Вы сделаете это! 🚀**
+1. Send `/start`
+2. Upload photo (corn, wheat, tomato work best)
+3. Wait for AI recognition (~2-3 seconds)
+4. Click "Эртең" (tomorrow) button
+5. Receive detailed recommendation with:
+   - Water volume (liters/sotka)
+   - Urgency level
+   - Weather forecast
+   - Personalized advice
 
 ---
 
-## 📋 QUICK REFERENCE
+## Troubleshooting
 
-### Полезные команды Docker
+### Problem: Bot doesn't respond
+
+**Solutions:**
+```bash
+# Check bot logs
+docker logs -f digitalfarmer2025_bot_1
+
+# Verify token
+echo $TELEGRAM_BOT_TOKEN
+
+# Restart bot
+docker-compose restart bot
+```
+
+### Problem: Backend returns errors
+
+**Solutions:**
+```bash
+# Check API logs
+docker logs -f digitalfarmer2025_api_1
+
+# Test health endpoint
+curl http://localhost:8000/api/v1/health
+
+# Restart API
+docker-compose restart api
+```
+
+### Problem: "Connection refused"
+
+**Solutions:**
+```bash
+# Check running containers
+docker ps
+
+# Check port availability
+netstat -an | grep 8000   # Linux/Mac
+netstat -an | findstr 8000  # Windows
+
+# Rebuild from scratch
+docker-compose down
+docker-compose up --build
+```
+
+### Problem: Images not recognized
+
+**Check:**
+- ✅ Image size < 10MB
+- ✅ Image format: JPEG, PNG, GIF, BMP
+- ✅ `MOCK_PLANT_ID=true` in .env (for testing)
+- ✅ Plant is clearly visible in photo
+
+---
+
+## Configuration Reference
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `TELEGRAM_BOT_TOKEN` | ✅ Yes | - | From @BotFather |
+| `PLANT_ID_API_KEY` | ❌ No | - | Plant.id API key |
+| `MOCK_PLANT_ID` | ❌ No | true | Use mock plant recognition |
+| `MOCK_WEATHER` | ❌ No | true | Use mock weather data |
+| `DEBUG` | ❌ No | true | Enable debug logging |
+| `HOST` | ❌ No | 0.0.0.0 | API host |
+| `PORT` | ❌ No | 8000 | API port |
+| `API_VERSION` | ❌ No | v1 | API version prefix |
+
+### Docker Compose Ports
+
+| Service | Port | URL |
+|---------|------|-----|
+| Backend API | 8000 | http://localhost:8000 |
+| API Docs | 8000 | http://localhost:8000/api/v1/docs |
+| Bot | - | Connects to Telegram |
+
+---
+
+## Production Deployment
+
+### Railway (Recommended)
 
 ```bash
-# Перезапустить
-docker-compose restart
+# Install Railway CLI
+npm install -g @railway/cli
 
-# Остановить
-docker-compose down
+# Login
+railway login
 
-# Запустить
-docker-compose up -d
-
-# Логи бота
-docker logs murab-bot -f
-
-# Логи backend
-docker logs murab-backend -f
-
-# Статус
-docker ps
+# Deploy
+railway up
 ```
 
-### Полезные команды бота
+### Fly.io
 
+```bash
+# Install Fly CLI
+curl -L https://fly.io/install.sh | sh
+
+# Login
+fly auth login
+
+# Deploy
+fly deploy
 ```
-/start - Приветствие
-/stats - Статистика (для жюри!)
-/admin_stats - Админ панель (для вас!)
+
+### Environment Variables for Production
+
+```bash
+# Set in Railway/Fly.io dashboard
+TELEGRAM_BOT_TOKEN=your_production_token
+PLANT_ID_API_KEY=your_real_api_key
+MOCK_PLANT_ID=false
+MOCK_WEATHER=false
+DEBUG=false
 ```
-
-### Ваши файлы
-
-- `HACKATHON_12H_PLAN.md` - Детальный 12-часовой план
-- `DEMO_SCRIPT.md` - Будет создан при реализации плана
-- `TESTING_CHECKLIST.md` - Будет создан при реализации плана
 
 ---
 
-**P.S.** Я (Claude Code) здесь рядом и помогу с любыми доработками! Просто спросите! 💪
+## Next Steps
+
+### 1. Get Real API Keys (Production)
+
+- **Plant.id:** https://web.plant.id/api-access-request/
+  - Free tier: 100 requests/day
+  - Paid: Unlimited
+
+- **Open-Meteo:** https://open-meteo.com/
+  - Free for non-commercial use
+
+### 2. Read Documentation
+
+- 📚 [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - Complete API reference
+- 📋 [CONTRACT.md](./CONTRACT.md) - API contract specs
+- 🎬 [DEMO.md](./DEMO.md) - Hackathon demo script
+- 📝 [12H_PLAN.md](./12H_PLAN.md) - Development roadmap
+
+### 3. Customize for Your Region
+
+Edit `api/core/constants.py`:
+```python
+# Change default location
+DEFAULT_LATITUDE = 42.8746  # Your latitude
+DEFAULT_LONGITUDE = 74.5698  # Your longitude
+
+# Add more crops
+CROP_NAMES["apple"] = {"ru": "Яблоко", "kg": "Алма", "en": "Apple"}
+```
+
+---
+
+## Development Workflow
+
+### Running Tests
+
+```bash
+# Backend tests
+cd api
+pytest tests/ -v
+
+# Bot tests
+cd bot
+pytest tests/ -v
+```
+
+### Code Formatting
+
+```bash
+# Format code
+black .
+isort .
+
+# Lint
+flake8 .
+mypy .
+```
+
+### Database Migrations (Future)
+
+```bash
+# When database is added
+alembic upgrade head
+```
+
+---
+
+## Support & Resources
+
+- 🐛 **Issues:** [GitHub Issues](https://github.com/yourusername/murabai/issues)
+- 💬 **Telegram:** @MurabAI_Support
+- 📧 **Email:** support@murabai.kg
+- 📖 **Docs:** http://localhost:8000/api/v1/docs
+
+---
+
+## FAQ
+
+**Q: Do I need Plant.id API key for testing?**
+A: No! Set `MOCK_PLANT_ID=true` to use mock data.
+
+**Q: What crops are supported?**
+A: Corn, wheat, cotton, tomato, potato, onion, carrot, beet, cucumber, pepper.
+
+**Q: Can I add new languages?**
+A: Yes! Edit `bot/utils/language.py` to add translations.
+
+**Q: How accurate is the irrigation calculation?**
+A: Based on FAO-56 standard. In mock mode, uses sample data.
+
+**Q: Can I use this for other countries?**
+A: Yes! Change coordinates in `api/core/constants.py`.
+
+---
+
+**Happy Coding! 🌾💻**
+
+Last updated: November 26, 2025

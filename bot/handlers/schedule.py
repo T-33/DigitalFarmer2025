@@ -231,6 +231,18 @@ async def process_irrigation_date(
             parse_mode="HTML"
         )
 
+        # Send irrigation tips
+        tips_text = get_text("irrigation_tips", user_lang)
+
+        # Add critical warning if urgency is critical
+        if recommendation['urgency'] == 'critical':
+            tips_text += "\n\n" + get_text("irrigation_tips_critical", user_lang)
+
+        # Add feedback reminder
+        tips_text += "\n\n" + get_text("feedback_reminder", user_lang)
+
+        await message.answer(tips_text, parse_mode="HTML")
+
         # Clear state but preserve language
         await state.clear()
         await set_user_language(state, user_lang)

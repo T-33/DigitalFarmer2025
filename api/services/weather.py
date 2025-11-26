@@ -4,13 +4,19 @@ Fetches weather forecasts for irrigation planning.
 """
 import logging
 import httpx
-from typing import Dict, Optional
-from datetime import datetime, date, timedelta
+from typing import Dict
+from datetime import date, timedelta
+
 from core.config import settings
+from core.constants import (
+    WEATHER_API_URL,
+    WEATHER_API_TIMEOUT,
+    MAX_FORECAST_DAYS,
+    DEFAULT_LATITUDE,
+    DEFAULT_LONGITUDE,
+)
 
 logger = logging.getLogger(__name__)
-
-WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
 
 # Weather condition emojis
 WEATHER_CONDITIONS = {
@@ -23,34 +29,38 @@ WEATHER_CONDITIONS = {
 
 
 async def get_weather_forecast(
-    latitude: float,
-    longitude: float,
-    target_date: date
+    latitude: float = DEFAULT_LATITUDE,
+    longitude: float = DEFAULT_LONGITUDE,
+    target_date: date = None
 ) -> Dict:
     """
     Get weather forecast for a specific location and date.
 
     Args:
-        latitude: Location latitude
-        longitude: Location longitude
-        target_date: Target date for forecast
+        latitude: Location latitude (defaults to Bishkek)
+        longitude: Location longitude (defaults to Bishkek)
+        target_date: Target date for forecast (defaults to today)
 
     Returns:
-        Dict with weather information
+        Dict with weather information including temperature, precipitation, and ET0
 
     Raises:
         Exception: If API call fails or date out of range
     """
+    # Use today if target_date not specified
+    if target_date is None:
+        target_date = date.today()
+
     # Mock mode for testing
     if settings.mock_weather:
         logger.info("Using mock weather response")
         return _get_mock_weather()
 
     try:
-        # Validate date range (max 7 days in the future)
+        # Validate date range
         days_ahead = (target_date - date.today()).days
-        if days_ahead > 7:
-            raise Exception("DATE_OUT_OF_RANGE")
+        if days_ahead > MAX_FORECAST_DAYS:
+            raise Exception(f"DATE_OUT_OF_RANGE: Maximum {MAX_FORECAST_DAYS} days")
         if days_ahead < 0:
             raise Exception("DATE_IN_PAST")
 
@@ -60,12 +70,12 @@ async def get_weather_forecast(
             "longitude": longitude,
             "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration",
             "timezone": "Asia/Bishkek",
-            "forecast_days": 7
+            "forecast_days": MAX_FORECAST_DAYS
         }
 
         logger.info(f"Fetching weather for {latitude}, {longitude} on {target_date}")
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=float(WEATHER_API_TIMEOUT)) as client:
             response = await client.get(WEATHER_API_URL, params=params)
             response.raise_for_status()
             data = response.json()
@@ -181,21 +191,24 @@ def _get_mock_weather() -> Dict:
 
 
 async def get_weekly_forecast(
-    latitude: float,
-    longitude: float
+    latitude: float = DEFAULT_LATITUDE,
+    longitude: float = DEFAULT_LONGITUDE
 ) -> Dict:
     """
     Get 7-day weather forecast.
 
     Args:
-        latitude: Location latitude
-        longitude: Location longitude
+        latitude: Location latitude (defaults to Bishkek)
+        longitude: Location longitude (defaults to Bishkek)
 
     Returns:
         Dict with weekly forecast data
+
+    Raises:
+        Exception: If API call fails
     """
     if settings.mock_weather:
-        return {"forecast": [_get_mock_weather() for _ in range(7)]}
+        return {"forecast": [_get_mock_weather() for _ in range(MAX_FORECAST_DAYS)]}
 
     try:
         params = {
@@ -203,10 +216,10 @@ async def get_weekly_forecast(
             "longitude": longitude,
             "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration",
             "timezone": "Asia/Bishkek",
-            "forecast_days": 7
+            "forecast_days": MAX_FORECAST_DAYS
         }
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=float(WEATHER_API_TIMEOUT)) as client:
             response = await client.get(WEATHER_API_URL, params=params)
             response.raise_for_status()
             data = response.json()
@@ -230,10 +243,10 @@ async def check_api_health() -> bool:
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            # Test request for Bishkek
+            # Test request for default location (Bishkek)
             params = {
-                "latitude": 42.8746,
-                "longitude": 74.5698,
+                "latitude": DEFAULT_LATITUDE,
+                "longitude": DEFAULT_LONGITUDE,
                 "daily": "temperature_2m_max",
                 "forecast_days": 1
             }

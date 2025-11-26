@@ -4,90 +4,19 @@ Calculates water requirements based on crop type, growth stage, and weather.
 """
 import logging
 from typing import Dict
-from datetime import date, datetime
+
+from core.constants import (
+    CROP_COEFFICIENTS,
+    WATERING_INTERVALS,
+    URGENCY_LEVELS,
+    MIN_IRRIGATION_LITERS,
+    get_crop_name,
+    get_growth_stage_name,
+    get_crop_coefficient,
+    get_watering_interval,
+)
 
 logger = logging.getLogger(__name__)
-
-# Crop coefficients (Kc) by crop and growth stage
-# Based on FAO-56 guidelines
-CROP_COEFFICIENTS = {
-    "corn": {
-        "initial": 0.3,
-        "development": 0.7,
-        "flowering": 1.2,
-        "maturation": 0.6
-    },
-    "wheat": {
-        "initial": 0.3,
-        "development": 0.7,
-        "flowering": 1.15,
-        "maturation": 0.4
-    },
-    "cotton": {
-        "initial": 0.35,
-        "development": 0.7,
-        "flowering": 1.15,
-        "maturation": 0.7
-    },
-    "tomato": {
-        "initial": 0.4,
-        "development": 0.7,
-        "flowering": 1.15,
-        "maturation": 0.8
-    },
-    "potato": {
-        "initial": 0.4,
-        "development": 0.7,
-        "flowering": 1.15,
-        "maturation": 0.75
-    },
-    "onion": {
-        "initial": 0.4,
-        "development": 0.7,
-        "flowering": 1.05,
-        "maturation": 0.85
-    },
-    "carrot": {
-        "initial": 0.4,
-        "development": 0.7,
-        "flowering": 1.05,
-        "maturation": 0.95
-    },
-    "beet": {
-        "initial": 0.4,
-        "development": 0.75,
-        "flowering": 1.05,
-        "maturation": 0.95
-    },
-    "cucumber": {
-        "initial": 0.4,
-        "development": 0.7,
-        "flowering": 1.0,
-        "maturation": 0.9
-    },
-    "pepper": {
-        "initial": 0.4,
-        "development": 0.7,
-        "flowering": 1.05,
-        "maturation": 0.9
-    }
-}
-
-# Watering intervals (days) by growth stage
-WATERING_INTERVALS = {
-    "initial": 8,
-    "development": 7,
-    "flowering": 5,
-    "maturation": 7
-}
-
-# Urgency thresholds (days until water)
-URGENCY_LEVELS = {
-    "low": (5, "🟢 Нормально", "🟢 Жакшы"),
-    "medium": (3, "🟡 Желательно", "🟡 Керек болсо"),
-    "high": (1, "🔴 Важно", "🔴 Маанилүү"),
-    "critical": (0, "⚠️ Критично", "⚠️ Абдан маанилүү")
-}
 
 
 def calculate_irrigation(
@@ -97,21 +26,21 @@ def calculate_irrigation(
     days_until_water: int
 ) -> Dict:
     """
-    Calculate irrigation recommendation.
+    Calculate irrigation recommendation based on FAO-56 methodology.
 
     Args:
-        crop_code: Crop identifier
-        growth_stage: Current growth stage
-        weather_info: Weather forecast data
+        crop_code: Crop identifier (e.g., "corn", "wheat")
+        growth_stage: Current growth stage (e.g., "flowering")
+        weather_info: Weather forecast data including ET0 and precipitation
         days_until_water: Days until irrigation date
 
     Returns:
-        Dict with irrigation recommendation
+        Dict with irrigation recommendation including water volume and urgency
     """
     logger.info(f"Calculating irrigation for {crop_code} ({growth_stage}), days={days_until_water}")
 
-    # Get crop coefficient
-    kc = CROP_COEFFICIENTS.get(crop_code, {}).get(growth_stage, 0.7)
+    # Get crop coefficient using helper function
+    kc = get_crop_coefficient(crop_code, growth_stage)
 
     # Get ET0 (reference evapotranspiration) from weather
     et0 = weather_info.get("et0", 3.5)  # mm/day
@@ -126,7 +55,7 @@ def calculate_irrigation(
     net_irrigation_daily = max(0, etc_daily - precipitation)
 
     # Calculate total need for period until next watering
-    next_watering_interval = WATERING_INTERVALS.get(growth_stage, 7)
+    next_watering_interval = get_watering_interval(growth_stage)
     total_irrigation_mm = net_irrigation_daily * next_watering_interval
 
     # Convert mm to liters per sotka (100 m²)
@@ -134,8 +63,8 @@ def calculate_irrigation(
     liters_per_sotka = int(total_irrigation_mm * 100)
 
     # Ensure minimum amount
-    if liters_per_sotka < 200:
-        liters_per_sotka = 200
+    if liters_per_sotka < MIN_IRRIGATION_LITERS:
+        liters_per_sotka = MIN_IRRIGATION_LITERS
 
     # Determine urgency
     urgency = _calculate_urgency(days_until_water, growth_stage)
@@ -157,7 +86,7 @@ def calculate_irrigation(
         "next_watering_days": next_watering_interval,
         "message_ru": messages["ru"],
         "message_kg": messages["kg"],
-        # Debug info (optional)
+        # Debug info (optional, useful for development)
         "debug": {
             "kc": kc,
             "et0": et0,
@@ -211,7 +140,7 @@ def _generate_messages(
     weather_info: Dict
 ) -> Dict[str, str]:
     """
-    Generate recommendation messages in Russian and Kyrgyz.
+    Generate personalized recommendation messages in Russian and Kyrgyz.
 
     Args:
         crop_code: Crop identifier
@@ -222,34 +151,13 @@ def _generate_messages(
         weather_info: Weather information
 
     Returns:
-        Dict with "ru" and "kg" messages
+        Dict with "ru" and "kg" localized messages
     """
-    # Crop names
-    crop_names = {
-        "corn": {"ru": "кукуруза", "kg": "жүгөрү"},
-        "wheat": {"ru": "пшеница", "kg": "буудай"},
-        "cotton": {"ru": "хлопок", "kg": "пахта"},
-        "tomato": {"ru": "помидоры", "kg": "помидор"},
-        "potato": {"ru": "картофель", "kg": "картошка"},
-        "onion": {"ru": "лук", "kg": "пияз"},
-        "carrot": {"ru": "морковь", "kg": "сабизи"},
-        "beet": {"ru": "свекла", "kg": "кызылча"},
-        "cucumber": {"ru": "огурцы", "kg": "бадыраң"},
-        "pepper": {"ru": "перец", "kg": "калемпир"},
-    }
-
-    # Stage descriptions
-    stage_names = {
-        "initial": {"ru": "всходах", "kg": "өнүү этабында"},
-        "development": {"ru": "активном росте", "kg": "өсүү этабында"},
-        "flowering": {"ru": "цветении", "kg": "гүлдөө этабында"},
-        "maturation": {"ru": "созревании", "kg": "бышуу этабында"},
-    }
-
-    crop_ru = crop_names.get(crop_code, {}).get("ru", "культура")
-    crop_kg = crop_names.get(crop_code, {}).get("kg", "өсүмдүк")
-    stage_ru = stage_names.get(growth_stage, {}).get("ru", "развитии")
-    stage_kg = stage_names.get(growth_stage, {}).get("kg", "өсүү этабында")
+    # Get localized crop and stage names using helper functions
+    crop_ru = get_crop_name(crop_code, "ru").lower()
+    crop_kg = get_crop_name(crop_code, "kg").lower()
+    stage_ru = get_growth_stage_name(growth_stage, "ru")
+    stage_kg = get_growth_stage_name(growth_stage, "kg")
 
     temp = weather_info.get("temp_avg", 12)
     precip = weather_info.get("precipitation_mm", 0)
@@ -325,12 +233,13 @@ def validate_crop_code(crop_code: str) -> bool:
     Validate if crop code is supported.
 
     Args:
-        crop_code: Crop identifier
+        crop_code: Crop identifier to validate
 
     Returns:
-        True if valid, False otherwise
+        True if crop is supported, False otherwise
     """
-    return crop_code in CROP_COEFFICIENTS
+    from core.constants import is_valid_crop
+    return is_valid_crop(crop_code)
 
 
 def validate_growth_stage(growth_stage: str) -> bool:
@@ -338,9 +247,10 @@ def validate_growth_stage(growth_stage: str) -> bool:
     Validate if growth stage is valid.
 
     Args:
-        growth_stage: Growth stage identifier
+        growth_stage: Growth stage identifier to validate
 
     Returns:
-        True if valid, False otherwise
+        True if stage is valid, False otherwise
     """
-    return growth_stage in ["initial", "development", "flowering", "maturation"]
+    from core.constants import is_valid_growth_stage
+    return is_valid_growth_stage(growth_stage)

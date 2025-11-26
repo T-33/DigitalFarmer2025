@@ -5,56 +5,49 @@ Identifies crops from images using Plant.id API.
 import logging
 import httpx
 import base64
-from typing import Dict, Optional, Tuple
+import binascii
+from typing import Dict, Optional
+
 from core.config import settings
+from core.constants import (
+    PLANT_ID_API_URL,
+    PLANT_ID_MAPPING,
+    PLANT_ID_TIMEOUT,
+    get_crop_name,
+    get_growth_stage_display,
+    WATER_NEEDS,
+)
 
 logger = logging.getLogger(__name__)
 
-PLANT_ID_API_URL = "https://api.plant.id/v2/identify"
 
-# Crop mapping: Plant.id scientific name → our crop codes
-CROP_MAPPING = {
-    "Zea mays": "corn",
-    "Triticum aestivum": "wheat",
-    "Gossypium": "cotton",
-    "Solanum lycopersicum": "tomato",
-    "Solanum tuberosum": "potato",
-    "Allium cepa": "onion",
-    "Daucus carota": "carrot",
-    "Beta vulgaris": "beet",
-    "Cucumis sativus": "cucumber",
-    "Capsicum annuum": "pepper",
-}
+def validate_base64_image(image_base64: str) -> bool:
+    """
+    Validate that base64 string is a valid image.
 
-# Crop names in different languages
-CROP_NAMES = {
-    "corn": {"ru": "Кукуруза", "kg": "Жүгөрү"},
-    "wheat": {"ru": "Пшеница", "kg": "Буудай"},
-    "cotton": {"ru": "Хлопок", "kg": "Пахта"},
-    "tomato": {"ru": "Помидор", "kg": "Помидор"},
-    "potato": {"ru": "Картофель", "kg": "Картошка"},
-    "onion": {"ru": "Лук", "kg": "Пияз"},
-    "carrot": {"ru": "Морковь", "kg": "Сабизи"},
-    "beet": {"ru": "Свекла", "kg": "Кызылча"},
-    "cucumber": {"ru": "Огурец", "kg": "Бадыраң"},
-    "pepper": {"ru": "Перец", "kg": "Калемпир"},
-}
+    Args:
+        image_base64: Base64 encoded string
 
-# Growth stages (inferred from image - simplified for MVP)
-GROWTH_STAGES = {
-    "initial": {"ru": "Всходы 🌱", "kg": "Өнүү 🌱"},
-    "development": {"ru": "Рост 🌿", "kg": "Өсүү 🌿"},
-    "flowering": {"ru": "Цветение 🌸", "kg": "Гүлдөө 🌸"},
-    "maturation": {"ru": "Созревание 🌾", "kg": "Бышуу 🌾"},
-}
+    Returns:
+        True if valid image format, False otherwise
+    """
+    try:
+        # Try to decode
+        image_bytes = base64.b64decode(image_base64)
 
-# Water need levels by growth stage
-WATER_NEEDS = {
-    "initial": {"level": "low", "ru": "🟢 Низкая", "kg": "🟢 Төмөн"},
-    "development": {"level": "medium", "ru": "🟡 Средняя", "kg": "🟡 Орточо"},
-    "flowering": {"level": "high", "ru": "🔴 Высокая", "kg": "🔴 Жогору"},
-    "maturation": {"level": "medium", "ru": "🟡 Средняя", "kg": "🟡 Орточо"},
-}
+        # Check magic bytes for common image formats
+        if image_bytes[:2] == b'\xff\xd8':  # JPEG
+            return True
+        elif image_bytes[:4] == b'\x89PNG':  # PNG
+            return True
+        elif image_bytes[:6] in [b'GIF87a', b'GIF89a']:  # GIF
+            return True
+        elif image_bytes[:2] in [b'BM', b'BA']:  # BMP
+            return True
+
+        return False
+    except (binascii.Error, ValueError):
+        return False
 
 
 async def identify_crop(image_base64: str) -> Dict:
@@ -65,11 +58,16 @@ async def identify_crop(image_base64: str) -> Dict:
         image_base64: Base64 encoded image string
 
     Returns:
-        Dict with crop information or error
+        Dict with crop information
 
     Raises:
-        Exception: If API call fails
+        Exception: If API call fails or image is invalid
     """
+    # Validate base64 image
+    if not validate_base64_image(image_base64):
+        logger.error("Invalid base64 image format")
+        raise Exception("INVALID_IMAGE_FORMAT")
+
     # Mock mode for testing
     if settings.mock_plant_id:
         logger.info("Using mock Plant.id response")
@@ -91,7 +89,7 @@ async def identify_crop(image_base64: str) -> Dict:
 
         logger.info("Calling Plant.id API...")
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=float(PLANT_ID_TIMEOUT)) as client:
             response = await client.post(
                 PLANT_ID_API_URL,
                 json=payload,
@@ -101,7 +99,7 @@ async def identify_crop(image_base64: str) -> Dict:
             response.raise_for_status()
             data = response.json()
 
-            logger.info(f"Plant.id API response received")
+            logger.info("Plant.id API response received")
 
             # Parse response
             return _parse_plant_id_response(data)
@@ -150,12 +148,12 @@ def _parse_plant_id_response(data: Dict) -> Dict:
 
     # Build response
     crop_info = {
-        "name_ru": CROP_NAMES[crop_code]["ru"],
-        "name_kg": CROP_NAMES[crop_code]["kg"],
+        "name_ru": get_crop_name(crop_code, "ru"),
+        "name_kg": get_crop_name(crop_code, "kg"),
         "name_code": crop_code,
         "confidence": round(probability, 2),
         "growth_stage": growth_stage,
-        "growth_stage_display": GROWTH_STAGES[growth_stage]["ru"],
+        "growth_stage_display": get_growth_stage_display(growth_stage, "ru"),
         "water_need": WATER_NEEDS[growth_stage]["level"],
         "water_need_display": WATER_NEEDS[growth_stage]["ru"]
     }
@@ -174,11 +172,11 @@ def _map_to_crop_code(plant_name: str) -> Optional[str]:
         Crop code or None if not found
     """
     # Direct mapping
-    if plant_name in CROP_MAPPING:
-        return CROP_MAPPING[plant_name]
+    if plant_name in PLANT_ID_MAPPING:
+        return PLANT_ID_MAPPING[plant_name]
 
     # Partial matching (for genus-level matches)
-    for scientific_name, crop_code in CROP_MAPPING.items():
+    for scientific_name, crop_code in PLANT_ID_MAPPING.items():
         if plant_name.startswith(scientific_name.split()[0]):
             return crop_code
 

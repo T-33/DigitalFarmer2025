@@ -10,7 +10,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import config
-from handlers import start, photo, schedule, stats
+from handlers import start, photo, schedule, stats, help, feedback
 
 # Configure logging
 logging.basicConfig(
@@ -30,11 +30,13 @@ async def main():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    # Register routers
+    # Register routers (order matters - more specific handlers first)
     dp.include_router(start.router)
+    dp.include_router(help.router)
+    dp.include_router(feedback.router)
+    dp.include_router(stats.router)
     dp.include_router(photo.router)
     dp.include_router(schedule.router)
-    dp.include_router(stats.router)
 
     logger.info("Bot started successfully!")
     logger.info(f"Backend API URL: {config.api.base_url}")
