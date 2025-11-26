@@ -13,7 +13,12 @@
       "Bash(git checkout:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(pip install:*)",
+      "Bash(cat:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell \"Get-Process | Where-Object {$_ProcessName -like ''*python*''} | Select-Object Id,ProcessName,Path\")"
     ],
     "deny": [],
     "ask": []
