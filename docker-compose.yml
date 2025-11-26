@@ -3,24 +3,26 @@ version: '3.8'
 services:
   backend:
     build: ./api
-    container_name: tamchy-backend
+    container_name: murab-backend
     ports:
       - "8000:8000"
     environment:
-      - PLANT_ID_API_KEY=${PLANT_ID_API_KEY}
+      - PLANT_ID_API_KEY=${PLANT_ID_API_KEY:-}
       - DEBUG=${DEBUG:-true}
       - HOST=0.0.0.0
       - PORT=8000
       - API_VERSION=v1
-      - DATABASE_URL=sqlite+aiosqlite:///./tamchy.db
+      - DATABASE_URL=sqlite+aiosqlite:///./murab.db
       - ALLOWED_ORIGINS=http://localhost:3000,http://bot:3000
+      - MOCK_PLANT_ID=true
+      - MOCK_WEATHER=true
     volumes:
       - ./api:/app
       - api_data:/app/data
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     networks:
-      - tamchy-network
+      - murab-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
@@ -30,7 +32,7 @@ services:
 
   bot:
     build: ./bot
-    container_name: tamchy-bot
+    container_name: murab-bot
     depends_on:
       backend:
         condition: service_healthy
@@ -44,12 +46,12 @@ services:
     command: python main.py
     restart: unless-stopped
     networks:
-      - tamchy-network
+      - murab-network
 
 volumes:
   api_data:
     driver: local
 
 networks:
-  tamchy-network:
+  murab-network:
     driver: bridge
