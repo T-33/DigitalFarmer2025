@@ -3,7 +3,7 @@ Handler for /start command and main menu.
 """
 import logging
 from aiogram import Router, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
@@ -142,10 +142,35 @@ async def callback_set_language(callback: CallbackQuery, state: FSMContext):
         callback: Callback query
         state: FSM context
     """
+    from aiogram.types import BotCommand, BotCommandScopeChat
+
     lang = callback.data.split("_")[1]  # Extract 'kg' or 'ru'
 
     # Save language preference to state
     await set_user_language(state, lang)
+
+    # Update bot commands menu for this user
+    if lang == "kg":
+        commands = [
+            BotCommand(command="start", description="🌱 Башынан баштоо"),
+            BotCommand(command="help", description="❓ Жардам"),
+            BotCommand(command="stats", description="📊 Статистика"),
+            BotCommand(command="feedback", description="💬 Пикир калтыруу"),
+            BotCommand(command="language", description="🌐 Тилди өзгөртүү"),
+        ]
+    else:  # ru
+        commands = [
+            BotCommand(command="start", description="🌱 Начать заново"),
+            BotCommand(command="help", description="❓ Помощь"),
+            BotCommand(command="stats", description="📊 Статистика"),
+            BotCommand(command="feedback", description="💬 Оставить отзыв"),
+            BotCommand(command="language", description="🌐 Сменить язык"),
+        ]
+
+    await callback.bot.set_my_commands(
+        commands,
+        scope=BotCommandScopeChat(chat_id=callback.message.chat.id)
+    )
 
     await callback.answer(
         get_text("language_changed", lang),
@@ -193,3 +218,24 @@ async def callback_back_to_menu(callback: CallbackQuery, state: FSMContext):
 
     # Set state back to waiting for photo
     await state.set_state(IrrigationStates.waiting_for_photo)
+
+
+@router.message(Command("language"))
+async def cmd_language(message: Message, state: FSMContext):
+    """
+    Handle /language command.
+
+    Args:
+        message: Incoming message
+        state: FSM context
+    """
+    # Get current language
+    user_lang = await get_user_language(state)
+
+    await message.answer(
+        get_text("select_language", user_lang),
+        reply_markup=get_language_keyboard(user_lang),
+        parse_mode="HTML"
+    )
+
+    logger.info(f"User {message.from_user.id} requested language change")

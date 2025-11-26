@@ -36,6 +36,7 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="help", description="❓ Жардам"),
         BotCommand(command="stats", description="📊 Статистика"),
         BotCommand(command="feedback", description="💬 Пикир калтыруу"),
+        BotCommand(command="language", description="🌐 Тилди өзгөртүү"),
     ]
 
     # Commands for Russian language
@@ -44,6 +45,7 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="help", description="❓ Помощь"),
         BotCommand(command="stats", description="📊 Статистика"),
         BotCommand(command="feedback", description="💬 Оставить отзыв"),
+        BotCommand(command="language", description="🌐 Сменить язык"),
     ]
 
     # Set default commands (Kyrgyz as default)
