@@ -12,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from states.irrigation import IrrigationStates
 from services.api_client import api_client
 from keyboards.inline import get_quick_date_keyboard
+from utils.language import get_user_language
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +29,16 @@ async def handle_photo(message: Message, state: FSMContext):
         state: FSM context
     """
     try:
+        # Get user language
+        user_lang = await get_user_language(state)
+
         # Send processing message
+        processing_text = {
+            "kg": "⏳ <b>Текшерүүдө...</b>\nСүрөттү анализдеп жатам...",
+            "ru": "⏳ <b>Анализ...</b>\nАнализирую фото..."
+        }
         processing_msg = await message.answer(
-            "⏳ <b>Текшерүүдө...</b>\n"
-            "Сүрөттү анализдеп жатам...",
+            processing_text.get(user_lang, processing_text["kg"]),
             parse_mode="HTML"
         )
 
@@ -42,11 +49,12 @@ async def handle_photo(message: Message, state: FSMContext):
         MAX_SIZE = 10 * 1024 * 1024  # 10MB for safety
         if photo.file_size and photo.file_size > MAX_SIZE:
             await processing_msg.delete()
+            error_text = {
+                "kg": f"❌ <b>Сүрөт өтө чоң!</b>\n\nМаксимум өлчөм: 10MB\nСиздин сүрөт: {photo.file_size / 1024 / 1024:.1f}MB\n\nБашка сүрөт жөнөтүңүз же сапатын азайтыңыз.",
+                "ru": f"❌ <b>Фото слишком большое!</b>\n\nМаксимальный размер: 10MB\nВаше фото: {photo.file_size / 1024 / 1024:.1f}MB\n\nОтправьте другое фото или уменьшите качество."
+            }
             await message.answer(
-                "❌ <b>Сүрөт өтө чоң!</b>\n\n"
-                f"Максимум өлчөм: 10MB\n"
-                f"Сиздин сүрөт: {photo.file_size / 1024 / 1024:.1f}MB\n\n"
-                "Башка сүрөт жөнөтүңүз же сапатын азайтыңыз.",
+                error_text.get(user_lang, error_text["kg"]),
                 parse_mode="HTML"
             )
             return
@@ -62,9 +70,12 @@ async def handle_photo(message: Message, state: FSMContext):
         # Double-check actual size after download
         if len(photo_bytes) > MAX_SIZE:
             await processing_msg.delete()
+            error_text = {
+                "kg": "❌ <b>Сүрөт өтө чоң!</b>\n\nБашка сүрөт жөнөтүңүз же сапатын азайтыңыз.",
+                "ru": "❌ <b>Фото слишком большое!</b>\n\nОтправьте другое фото или уменьшите качество."
+            }
             await message.answer(
-                "❌ <b>Сүрөт өтө чоң!</b>\n\n"
-                "Башка сүрөт жөнөтүңүз же сапатын азайтыңыз.",
+                error_text.get(user_lang, error_text["kg"]),
                 parse_mode="HTML"
             )
             return
@@ -130,15 +141,29 @@ async def handle_photo(message: Message, state: FSMContext):
         )
 
         # Send result
+        result_texts = {
+            "kg": (
+                f"✅ <b>Таанылды!</b>\n\n"
+                f"🌱 <b>Өсүмдүк:</b> {crop_name_kg}\n"
+                f"📊 <b>Этап:</b> {growth_stage_display}\n"
+                f"💧 <b>Суу керектөө:</b> {water_need_display}\n"
+                f"🎯 <b>Ишеним:</b> {int(confidence * 100)}%\n\n"
+                f"<b>Качан суу келет?</b>\n"
+                f"Суу берүү күнүн тандаңыз:"
+            ),
+            "ru": (
+                f"✅ <b>Распознано!</b>\n\n"
+                f"🌱 <b>Культура:</b> {crop_name_ru}\n"
+                f"📊 <b>Стадия:</b> {growth_stage_display}\n"
+                f"💧 <b>Потребность в воде:</b> {water_need_display}\n"
+                f"🎯 <b>Уверенность:</b> {int(confidence * 100)}%\n\n"
+                f"<b>Когда будет вода?</b>\n"
+                f"Выберите дату полива:"
+            )
+        }
         await message.answer(
-            f"✅ <b>Таанылды!</b>\n\n"
-            f"🌱 <b>Өсүмдүк:</b> {crop_name_kg}\n"
-            f"📊 <b>Этап:</b> {growth_stage_display}\n"
-            f"💧 <b>Суу керектөө:</b> {water_need_display}\n"
-            f"🎯 <b>Ишеним:</b> {int(confidence * 100)}%\n\n"
-            f"<b>Качан суу келет?</b>\n"
-            f"Суу берүү күнүн тандаңыз:",
-            reply_markup=get_quick_date_keyboard(),
+            result_texts.get(user_lang, result_texts["kg"]),
+            reply_markup=get_quick_date_keyboard(user_lang),
             parse_mode="HTML"
         )
 
@@ -152,23 +177,32 @@ async def handle_photo(message: Message, state: FSMContext):
 
     except Exception as e:
         logger.error(f"Error processing photo: {e}", exc_info=True)
+        user_lang = await get_user_language(state)
+        error_texts = {
+            "kg": "❌ <b>Ката кетти</b>\n\nСүрөттү иштете албадым. Кайра аракет кылыңыз.",
+            "ru": "❌ <b>Произошла ошибка</b>\n\nНе удалось обработать фото. Попробуйте еще раз."
+        }
         await message.answer(
-            "❌ <b>Ката кетти</b>\n\n"
-            "Сүрөттү иштете албадым. Кайра аракет кылыңыз.",
+            error_texts.get(user_lang, error_texts["kg"]),
             parse_mode="HTML"
         )
 
 
 @router.message(IrrigationStates.waiting_for_photo)
-async def handle_non_photo(message: Message):
+async def handle_non_photo(message: Message, state: FSMContext):
     """
     Handle non-photo messages when waiting for photo.
 
     Args:
         message: Incoming message
+        state: FSM context
     """
+    user_lang = await get_user_language(state)
+    error_texts = {
+        "kg": "📸 <b>Сүрөт жөнөтүңүз</b>\n\nТалаңыздын сүрөтүн жөнөтүш керек.",
+        "ru": "📸 <b>Отправьте фото</b>\n\nНужно отправить фото вашего поля."
+    }
     await message.answer(
-        "📸 <b>Сүрөт жөнөтүңүз</b>\n\n"
-        "Талаңыздын сүрөтүн жөнөтүш керек.",
+        error_texts.get(user_lang, error_texts["kg"]),
         parse_mode="HTML"
     )

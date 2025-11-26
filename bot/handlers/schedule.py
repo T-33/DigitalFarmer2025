@@ -12,6 +12,7 @@ import dateparser
 from states.irrigation import IrrigationStates
 from services.api_client import api_client
 from keyboards.inline import get_back_to_menu_keyboard
+from utils.language import get_user_language, set_user_language
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,9 @@ async def handle_quick_date(callback: CallbackQuery, state: FSMContext):
         callback: Callback query
         state: FSM context
     """
+    # Get user language
+    user_lang = await get_user_language(state)
+
     date_type = callback.data.split("_", 1)[1]  # e.g., "today", "tomorrow"
 
     today = datetime.now().date()
@@ -45,19 +49,37 @@ async def handle_quick_date(callback: CallbackQuery, state: FSMContext):
         selected_date = today + timedelta(days=days_until_friday)
     elif date_type == "custom":
         await callback.answer()
+        custom_texts = {
+            "kg": (
+                "✍️ <b>Датаны жазыңыз</b>\n\n"
+                "Мисалдар:\n"
+                "• Бүгүн\n"
+                "• Эртең\n"
+                "• Шаршемби\n"
+                "• 29 ноябрь\n"
+                "• 2025-11-29"
+            ),
+            "ru": (
+                "✍️ <b>Напишите дату</b>\n\n"
+                "Примеры:\n"
+                "• Сегодня\n"
+                "• Завтра\n"
+                "• Среда\n"
+                "• 29 ноября\n"
+                "• 2025-11-29"
+            )
+        }
         await callback.message.edit_text(
-            "✍️ <b>Датаны жазыңыз</b>\n\n"
-            "Мисалдар:\n"
-            "• Бүгүн\n"
-            "• Эртең\n"
-            "• Шаршемби\n"
-            "• 29 ноябрь\n"
-            "• 2025-11-29",
+            custom_texts.get(user_lang, custom_texts["kg"]),
             parse_mode="HTML"
         )
         return
     else:
-        await callback.answer("Ката!")
+        error_texts = {
+            "kg": "Ката!",
+            "ru": "Ошибка!"
+        }
+        await callback.answer(error_texts.get(user_lang, error_texts["kg"]))
         return
 
     await callback.answer()
@@ -80,6 +102,9 @@ async def handle_text_date(message: Message, state: FSMContext):
         message: Incoming message
         state: FSM context
     """
+    # Get user language
+    user_lang = await get_user_language(state)
+
     user_text = message.text.strip()
 
     # Parse date using dateparser (supports Kyrgyz and Russian)
@@ -93,13 +118,26 @@ async def handle_text_date(message: Message, state: FSMContext):
     )
 
     if not parsed_date:
+        error_texts = {
+            "kg": (
+                "❌ <b>Датаны түшүнбөдүм</b>\n\n"
+                "Мисалдар:\n"
+                "• Бүгүн\n"
+                "• Эртең\n"
+                "• Шаршемби\n"
+                "• 29 ноябрь"
+            ),
+            "ru": (
+                "❌ <b>Не понял дату</b>\n\n"
+                "Примеры:\n"
+                "• Сегодня\n"
+                "• Завтра\n"
+                "• Среда\n"
+                "• 29 ноября"
+            )
+        }
         await message.answer(
-            "❌ <b>Датаны түшүнбөдүм</b>\n\n"
-            "Мисалдар:\n"
-            "• Бүгүн\n"
-            "• Эртең\n"
-            "• Шаршемби\n"
-            "• 29 ноябрь",
+            error_texts.get(user_lang, error_texts["kg"]),
             parse_mode="HTML"
         )
         return
@@ -107,18 +145,37 @@ async def handle_text_date(message: Message, state: FSMContext):
     # Check if date is not too far in future (max 7 days for weather forecast)
     days_diff = (parsed_date.date() - datetime.now().date()).days
     if days_diff > 7:
+        far_texts = {
+            "kg": (
+                "❌ <b>Дата өтө алыс</b>\n\n"
+                "Аба ырайын 7 күнгө гана билем.\n"
+                "Жакынкы датаны тандаңыз."
+            ),
+            "ru": (
+                "❌ <b>Дата слишком далеко</b>\n\n"
+                "Я знаю погоду только на 7 дней.\n"
+                "Выберите более близкую дату."
+            )
+        }
         await message.answer(
-            "❌ <b>Дата өтө алыс</b>\n\n"
-            "Аба ырайын 7 күнгө гана билем.\n"
-            "Жакынкы датаны тандаңыз.",
+            far_texts.get(user_lang, far_texts["kg"]),
             parse_mode="HTML"
         )
         return
 
     if days_diff < 0:
+        past_texts = {
+            "kg": (
+                "❌ <b>Дата өткөн</b>\n\n"
+                "Келечектеги датаны тандаңыз."
+            ),
+            "ru": (
+                "❌ <b>Дата в прошлом</b>\n\n"
+                "Выберите дату в будущем."
+            )
+        }
         await message.answer(
-            "❌ <b>Дата өткөн</b>\n\n"
-            "Келечектеги датаны тандаңыз.",
+            past_texts.get(user_lang, past_texts["kg"]),
             parse_mode="HTML"
         )
         return
@@ -148,22 +205,33 @@ async def process_irrigation_date(
         user_id: Telegram user ID
     """
     try:
+        # Get user language
+        user_lang = await get_user_language(state)
+
         # Get saved crop data
         data = await state.get_data()
         crop_code = data.get("crop_code")
         growth_stage = data.get("growth_stage")
         crop_name_kg = data.get("crop_name_kg")
+        crop_name_ru = data.get("crop_name_ru")
 
         if not crop_code or not growth_stage:
+            error_texts = {
+                "kg": "❌ Ката: өсүмдүк маалыматы жок. /start баскычын басыңыз.",
+                "ru": "❌ Ошибка: нет данных о культуре. Нажмите /start."
+            }
             await message.answer(
-                "❌ Ката: өсүмдүк маалыматы жок. /start баскычын басыңыз."
+                error_texts.get(user_lang, error_texts["kg"])
             )
             return
 
         # Send processing message
+        processing_texts = {
+            "kg": "⏳ <b>Эсептеп жатам...</b>\nАба ырайын текшерүүдө...",
+            "ru": "⏳ <b>Рассчитываю...</b>\nПроверяю погоду..."
+        }
         processing_msg = await message.answer(
-            "⏳ <b>Эсептеп жатам...</b>\n"
-            "Аба ырайын текшерүүдө...",
+            processing_texts.get(user_lang, processing_texts["kg"]),
             parse_mode="HTML"
         )
 
@@ -181,9 +249,13 @@ async def process_irrigation_date(
 
         # Check if successful
         if not result.get("success", False):
-            error_msg = result.get("error", "Белгисиз ката")
+            error_msg = result.get("error", "Белгисиз ката" if user_lang == "kg" else "Неизвестная ошибка")
+            error_headers = {
+                "kg": "❌ <b>Ката кетти</b>",
+                "ru": "❌ <b>Произошла ошибка</b>"
+            }
             await message.answer(
-                f"❌ <b>Ката кетти</b>\n\n{error_msg}",
+                f"{error_headers.get(user_lang, error_headers['kg'])}\n\n{error_msg}",
                 parse_mode="HTML"
             )
             return
@@ -194,40 +266,64 @@ async def process_irrigation_date(
         weather = result["weather"]
         recommendation = result["recommendation"]
 
-        # Format message
-        response_text = (
-            f"💧 <b>Суу берүү кеңеши</b>\n\n"
-            f"🌱 <b>Өсүмдүк:</b> {crop_name_kg}\n"
-            f"📅 <b>Суу күнү:</b> {water_date_display}\n"
-            f"⏰ <b>Канча күн калды:</b> {days_until} күн\n\n"
-            f"🌡️ <b>Аба ырайы:</b>\n"
-            f"• Температура: {weather['temp_avg']}°C\n"
-            f"• Жаан: {weather['precipitation_mm']} мм\n"
-            f"• {weather['condition']}\n\n"
-            f"💦 <b>Суу көлөмү:</b> {recommendation['liters_per_sotka']} литр/сотка\n"
-            f"🚨 <b>Шашылыштык:</b> {recommendation['urgency_display']}\n"
-            f"🔄 <b>Кийинки суу:</b> {recommendation['next_watering_days']} күндөн кийин\n\n"
-            f"<b>Кеңеш:</b>\n{recommendation['message_kg']}"
-        )
+        # Select crop name based on language
+        crop_name = crop_name_kg if user_lang == "kg" else crop_name_ru
+
+        # Format message in user's language
+        if user_lang == "ru":
+            response_text = (
+                f"💧 <b>Рекомендация по поливу</b>\n\n"
+                f"🌱 <b>Культура:</b> {crop_name}\n"
+                f"📅 <b>День полива:</b> {water_date_display}\n"
+                f"⏰ <b>Осталось дней:</b> {days_until}\n\n"
+                f"🌡️ <b>Погода:</b>\n"
+                f"• Температура: {weather['temp_avg']}°C\n"
+                f"• Осадки: {weather['precipitation_mm']} мм\n"
+                f"• {weather['condition']}\n\n"
+                f"💦 <b>Объем воды:</b> {recommendation['liters_per_sotka']} литров/сотка\n"
+                f"🚨 <b>Срочность:</b> {recommendation['urgency_display']}\n"
+                f"🔄 <b>Следующий полив:</b> через {recommendation['next_watering_days']} дней\n\n"
+                f"<b>Совет:</b>\n{recommendation['message_ru']}"
+            )
+        else:
+            response_text = (
+                f"💧 <b>Суу берүү кеңеши</b>\n\n"
+                f"🌱 <b>Өсүмдүк:</b> {crop_name}\n"
+                f"📅 <b>Суу күнү:</b> {water_date_display}\n"
+                f"⏰ <b>Канча күн калды:</b> {days_until}\n\n"
+                f"🌡️ <b>Аба ырайы:</b>\n"
+                f"• Температура: {weather['temp_avg']}°C\n"
+                f"• Жаан: {weather['precipitation_mm']} мм\n"
+                f"• {weather['condition']}\n\n"
+                f"💦 <b>Суу көлөмү:</b> {recommendation['liters_per_sotka']} литр/сотка\n"
+                f"🚨 <b>Шашылыштык:</b> {recommendation['urgency_display']}\n"
+                f"🔄 <b>Кийинки суу:</b> {recommendation['next_watering_days']} күндөн кийин\n\n"
+                f"<b>Кеңеш:</b>\n{recommendation['message_kg']}"
+            )
 
         await message.answer(
             response_text,
-            reply_markup=get_back_to_menu_keyboard(),
+            reply_markup=get_back_to_menu_keyboard(user_lang),
             parse_mode="HTML"
         )
 
-        # Clear state
+        # Clear state but preserve language
         await state.clear()
+        await set_user_language(state, user_lang)
 
         logger.info(
             f"User {user_id} got recommendation for "
-            f"{crop_name_kg} on {water_date}"
+            f"{crop_name} on {water_date}"
         )
 
     except Exception as e:
         logger.error(f"Error processing irrigation date: {e}", exc_info=True)
+        user_lang = await get_user_language(state)
+        error_texts = {
+            "kg": "❌ <b>Ката кетти</b>\n\nКеңешти алуу мүмкүн болбоду. Кайра аракет кылыңыз.",
+            "ru": "❌ <b>Произошла ошибка</b>\n\nНе удалось получить рекомендацию. Попробуйте еще раз."
+        }
         await message.answer(
-            "❌ <b>Ката кетти</b>\n\n"
-            "Кеңешти алуу мүмкүн болбоду. Кайра аракет кылыңыз.",
+            error_texts.get(user_lang, error_texts["kg"]),
             parse_mode="HTML"
         )

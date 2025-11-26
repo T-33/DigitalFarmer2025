@@ -9,62 +9,15 @@ from aiogram.fsm.context import FSMContext
 
 from keyboards.inline import (
     get_main_menu_keyboard,
-    get_language_keyboard
+    get_language_keyboard,
+    get_back_to_menu_keyboard
 )
 from states.irrigation import IrrigationStates
+from utils.language import get_user_language, set_user_language, get_text
 
 logger = logging.getLogger(__name__)
 
 router = Router()
-
-
-WELCOME_MESSAGE_KG = """
-🌱 <b>MurabAI'га кош келиңиз!</b>
-
-Мен сиздин талаңызга карап, канча суу керектигин айтып берем.
-
-<b>Мен кандай жардам бере алам:</b>
-✅ Өсүмдүктү таанып алам (фото боюнча)
-✅ Аба ырайын текшерем
-✅ Суу көлөмүн эсептейм
-✅ Кеңештерди беремин
-
-<b>Баштоо үчүн талаңыздын сүрөтүн жөнөтүңүз 📸</b>
-"""
-
-WELCOME_MESSAGE_RU = """
-🌱 <b>Добро пожаловать в MurabAI!</b>
-
-Я помогу определить, сколько воды нужно вашему полю.
-
-<b>Что я умею:</b>
-✅ Распознаю культуры по фото
-✅ Проверяю прогноз погоды
-✅ Рассчитываю объем воды
-✅ Даю рекомендации
-
-<b>Отправьте фото вашего поля, чтобы начать 📸</b>
-"""
-
-INFO_MESSAGE_KG = """
-ℹ️ <b>MurabAI жөнүндө</b>
-
-<b>Биздин максат:</b>
-Кыргызстандагы дыйкандарга сууну үнөмдөөгө жана түшүмдүүлүктү жогорулатууга жардам берүү.
-
-<b>Кантип иштейт:</b>
-1. Талаңыздын сүрөтүн жөнөтөсүз
-2. Биз өсүмдүктү таанып алабыз
-3. Сиз суу качан келерин айтасыз
-4. Биз аба ырайын текшерип, кеңеш беребиз
-
-<b>Артыкчылыктар:</b>
-💧 30%га чейин суу үнөмдөө
-📈 15%га чейин түшүмдүүлүктү жогорулатуу
-🌍 Экологияга пайда
-
-Долбоор: Farmers Hackathon 2025
-"""
 
 
 @router.message(CommandStart())
@@ -78,15 +31,19 @@ async def cmd_start(message: Message, state: FSMContext):
     """
     await state.clear()
 
-    # TODO: Get user language preference from database
-    # For now, default to Kyrgyz
-    user_lang = "kg"
+    # Get user language (defaults to 'kg' if not set)
+    user_lang = await get_user_language(state)
 
-    welcome_text = WELCOME_MESSAGE_KG if user_lang == "kg" else WELCOME_MESSAGE_RU
+    # Set language if not set yet
+    if not await state.get_data():
+        await set_user_language(state, "kg")
+        user_lang = "kg"
+
+    welcome_text = get_text("welcome", user_lang)
 
     await message.answer(
         welcome_text,
-        reply_markup=get_main_menu_keyboard(),
+        reply_markup=get_main_menu_keyboard(user_lang),
         parse_mode="HTML"
     )
 
@@ -107,9 +64,11 @@ async def callback_new_check(callback: CallbackQuery, state: FSMContext):
     """
     await callback.answer()
 
+    # Get user language
+    user_lang = await get_user_language(state)
+
     await callback.message.edit_text(
-        "📸 <b>Талаңыздын сүрөтүн жөнөтүңүз</b>\n\n"
-        "Өсүмдүктөр жакшы көрүнүш керек.",
+        get_text("send_photo", user_lang),
         parse_mode="HTML"
     )
 
@@ -117,66 +76,77 @@ async def callback_new_check(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data == "info")
-async def callback_info(callback: CallbackQuery):
+async def callback_info(callback: CallbackQuery, state: FSMContext):
     """
     Handle 'Info' button.
 
     Args:
         callback: Callback query
+        state: FSM context
     """
     await callback.answer()
 
-    from keyboards.inline import get_back_to_menu_keyboard
+    # Get user language
+    user_lang = await get_user_language(state)
 
     await callback.message.edit_text(
-        INFO_MESSAGE_KG,
-        reply_markup=get_back_to_menu_keyboard(),
+        get_text("info", user_lang),
+        reply_markup=get_back_to_menu_keyboard(user_lang),
         parse_mode="HTML"
     )
 
 
 @router.callback_query(F.data == "change_lang")
-async def callback_change_lang(callback: CallbackQuery):
+async def callback_change_lang(callback: CallbackQuery, state: FSMContext):
     """
     Handle 'Change language' button.
 
     Args:
         callback: Callback query
+        state: FSM context
     """
     await callback.answer()
 
+    # Get current language
+    user_lang = await get_user_language(state)
+
     await callback.message.edit_text(
-        "🌐 <b>Тилди тандаңыз / Выберите язык:</b>",
-        reply_markup=get_language_keyboard(),
+        get_text("select_language", user_lang),
+        reply_markup=get_language_keyboard(user_lang),
         parse_mode="HTML"
     )
 
 
 @router.callback_query(F.data.startswith("lang_"))
-async def callback_set_language(callback: CallbackQuery):
+async def callback_set_language(callback: CallbackQuery, state: FSMContext):
     """
     Handle language selection.
 
     Args:
         callback: Callback query
+        state: FSM context
     """
     lang = callback.data.split("_")[1]  # Extract 'kg' or 'ru'
 
-    # TODO: Save language preference to database
+    # Save language preference to state
+    await set_user_language(state, lang)
 
     await callback.answer(
-        "✅ Тил өзгөртүлдү!" if lang == "kg" else "✅ Язык изменён!",
+        get_text("language_changed", lang),
         show_alert=True
     )
 
-    # Return to main menu
-    welcome_text = WELCOME_MESSAGE_KG if lang == "kg" else WELCOME_MESSAGE_RU
+    # Return to main menu with new language
+    welcome_text = get_text("welcome", lang)
 
     await callback.message.edit_text(
         welcome_text,
-        reply_markup=get_main_menu_keyboard(),
+        reply_markup=get_main_menu_keyboard(lang),
         parse_mode="HTML"
     )
+
+    # Keep state as waiting for photo
+    await state.set_state(IrrigationStates.waiting_for_photo)
 
 
 @router.callback_query(F.data == "back_to_menu")
@@ -190,16 +160,18 @@ async def callback_back_to_menu(callback: CallbackQuery, state: FSMContext):
     """
     await callback.answer()
 
-    # Clear state
-    await state.clear()
+    # Get user language BEFORE clearing
+    user_lang = await get_user_language(state)
 
-    # TODO: Get user language
-    user_lang = "kg"
-    welcome_text = WELCOME_MESSAGE_KG if user_lang == "kg" else WELCOME_MESSAGE_RU
+    # Clear state but preserve language
+    await state.clear()
+    await set_user_language(state, user_lang)
+
+    welcome_text = get_text("welcome", user_lang)
 
     await callback.message.edit_text(
         welcome_text,
-        reply_markup=get_main_menu_keyboard(),
+        reply_markup=get_main_menu_keyboard(user_lang),
         parse_mode="HTML"
     )
 
