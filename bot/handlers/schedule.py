@@ -12,7 +12,7 @@ import dateparser
 from states.irrigation import IrrigationStates
 from services.api_client import api_client
 from keyboards.inline import get_back_to_menu_keyboard
-from utils.language import get_user_language, set_user_language
+from utils.language import get_user_language, set_user_language, get_text
 
 logger = logging.getLogger(__name__)
 
@@ -49,37 +49,13 @@ async def handle_quick_date(callback: CallbackQuery, state: FSMContext):
         selected_date = today + timedelta(days=days_until_friday)
     elif date_type == "custom":
         await callback.answer()
-        custom_texts = {
-            "kg": (
-                "✍️ <b>Датаны жазыңыз</b>\n\n"
-                "Мисалдар:\n"
-                "• Бүгүн\n"
-                "• Эртең\n"
-                "• Шаршемби\n"
-                "• 29 ноябрь\n"
-                "• 2025-11-29"
-            ),
-            "ru": (
-                "✍️ <b>Напишите дату</b>\n\n"
-                "Примеры:\n"
-                "• Сегодня\n"
-                "• Завтра\n"
-                "• Среда\n"
-                "• 29 ноября\n"
-                "• 2025-11-29"
-            )
-        }
         await callback.message.edit_text(
-            custom_texts.get(user_lang, custom_texts["kg"]),
+            get_text("date_prompt_custom", user_lang),
             parse_mode="HTML"
         )
         return
     else:
-        error_texts = {
-            "kg": "Ката!",
-            "ru": "Ошибка!"
-        }
-        await callback.answer(error_texts.get(user_lang, error_texts["kg"]))
+        await callback.answer(get_text("date_error", user_lang))
         return
 
     await callback.answer()
@@ -118,26 +94,8 @@ async def handle_text_date(message: Message, state: FSMContext):
     )
 
     if not parsed_date:
-        error_texts = {
-            "kg": (
-                "❌ <b>Датаны түшүнбөдүм</b>\n\n"
-                "Мисалдар:\n"
-                "• Бүгүн\n"
-                "• Эртең\n"
-                "• Шаршемби\n"
-                "• 29 ноябрь"
-            ),
-            "ru": (
-                "❌ <b>Не понял дату</b>\n\n"
-                "Примеры:\n"
-                "• Сегодня\n"
-                "• Завтра\n"
-                "• Среда\n"
-                "• 29 ноября"
-            )
-        }
         await message.answer(
-            error_texts.get(user_lang, error_texts["kg"]),
+            get_text("date_invalid", user_lang),
             parse_mode="HTML"
         )
         return
@@ -145,37 +103,15 @@ async def handle_text_date(message: Message, state: FSMContext):
     # Check if date is not too far in future (max 7 days for weather forecast)
     days_diff = (parsed_date.date() - datetime.now().date()).days
     if days_diff > 7:
-        far_texts = {
-            "kg": (
-                "❌ <b>Дата өтө алыс</b>\n\n"
-                "Аба ырайын 7 күнгө гана билем.\n"
-                "Жакынкы датаны тандаңыз."
-            ),
-            "ru": (
-                "❌ <b>Дата слишком далеко</b>\n\n"
-                "Я знаю погоду только на 7 дней.\n"
-                "Выберите более близкую дату."
-            )
-        }
         await message.answer(
-            far_texts.get(user_lang, far_texts["kg"]),
+            get_text("date_too_far", user_lang),
             parse_mode="HTML"
         )
         return
 
     if days_diff < 0:
-        past_texts = {
-            "kg": (
-                "❌ <b>Дата өткөн</b>\n\n"
-                "Келечектеги датаны тандаңыз."
-            ),
-            "ru": (
-                "❌ <b>Дата в прошлом</b>\n\n"
-                "Выберите дату в будущем."
-            )
-        }
         await message.answer(
-            past_texts.get(user_lang, past_texts["kg"]),
+            get_text("date_in_past", user_lang),
             parse_mode="HTML"
         )
         return
@@ -216,22 +152,14 @@ async def process_irrigation_date(
         crop_name_ru = data.get("crop_name_ru")
 
         if not crop_code or not growth_stage:
-            error_texts = {
-                "kg": "❌ Ката: өсүмдүк маалыматы жок. /start баскычын басыңыз.",
-                "ru": "❌ Ошибка: нет данных о культуре. Нажмите /start."
-            }
             await message.answer(
-                error_texts.get(user_lang, error_texts["kg"])
+                get_text("error_no_crop_data", user_lang)
             )
             return
 
         # Send processing message
-        processing_texts = {
-            "kg": "⏳ <b>Эсептеп жатам...</b>\nАба ырайын текшерүүдө...",
-            "ru": "⏳ <b>Рассчитываю...</b>\nПроверяю погоду..."
-        }
         processing_msg = await message.answer(
-            processing_texts.get(user_lang, processing_texts["kg"]),
+            get_text("processing_schedule", user_lang),
             parse_mode="HTML"
         )
 
@@ -249,13 +177,9 @@ async def process_irrigation_date(
 
         # Check if successful
         if not result.get("success", False):
-            error_msg = result.get("error", "Белгисиз ката" if user_lang == "kg" else "Неизвестная ошибка")
-            error_headers = {
-                "kg": "❌ <b>Ката кетти</b>",
-                "ru": "❌ <b>Произошла ошибка</b>"
-            }
+            error_msg = result.get("error", get_text("error_unknown", user_lang))
             await message.answer(
-                f"{error_headers.get(user_lang, error_headers['kg'])}\n\n{error_msg}",
+                f"{get_text('error_occurred', user_lang)}\n\n{error_msg}",
                 parse_mode="HTML"
             )
             return
@@ -319,11 +243,7 @@ async def process_irrigation_date(
     except Exception as e:
         logger.error(f"Error processing irrigation date: {e}", exc_info=True)
         user_lang = await get_user_language(state)
-        error_texts = {
-            "kg": "❌ <b>Ката кетти</b>\n\nКеңешти алуу мүмкүн болбоду. Кайра аракет кылыңыз.",
-            "ru": "❌ <b>Произошла ошибка</b>\n\nНе удалось получить рекомендацию. Попробуйте еще раз."
-        }
         await message.answer(
-            error_texts.get(user_lang, error_texts["kg"]),
+            get_text("error_getting_recommendation", user_lang),
             parse_mode="HTML"
         )
