@@ -3,66 +3,67 @@ Crop analysis endpoint.
 """
 import logging
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from models.requests import AnalyzeCropRequest
+from models.responses import AnalyzeCropResponse, CropInfo, ErrorResponse
+from services import plant_id
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-class AnalyzeCropRequest(BaseModel):
-    """Request model for crop analysis"""
-    image_base64: str
-    telegram_user_id: int
-
-
-class CropInfo(BaseModel):
-    """Crop information model"""
-    name_ru: str
-    name_kg: str
-    name_code: str
-    confidence: float
-    growth_stage: str
-    growth_stage_display: str
-    water_need: str
-    water_need_display: str
-
-
-class AnalyzeCropResponse(BaseModel):
-    """Response model for crop analysis"""
-    success: bool
-    crop: CropInfo = None
-    error: str = None
-    error_code: str = None
-
-
 @router.post("/analyze-crop", response_model=AnalyzeCropResponse)
 async def analyze_crop(request: AnalyzeCropRequest):
     """
-    Analyze crop from photo.
+    Analyze crop from photo using Plant.id API.
 
     Args:
-        request: Crop analysis request
+        request: Crop analysis request with base64 image
 
     Returns:
-        AnalyzeCropResponse: Crop analysis result
+        AnalyzeCropResponse: Crop identification result
+
+    Raises:
+        HTTPException: If analysis fails
     """
     logger.info(f"Analyzing crop for user {request.telegram_user_id}")
 
-    # TODO: Implement Plant.id API integration
-    # For now, return mock response
+    try:
+        # Call Plant.id service
+        crop_data = await plant_id.identify_crop(request.image_base64)
 
-    # Mock response for testing
-    return {
-        "success": True,
-        "crop": {
-            "name_ru": "Кукуруза",
-            "name_kg": "Жүгөрү",
-            "name_code": "corn",
-            "confidence": 0.94,
-            "growth_stage": "flowering",
-            "growth_stage_display": "Цветение 🌸",
-            "water_need": "high",
-            "water_need_display": "🔴 Высокая"
-        }
-    }
+        # Return success response
+        return AnalyzeCropResponse(
+            success=True,
+            crop=CropInfo(**crop_data)
+        )
+
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"Crop analysis failed: {error_message}")
+
+        # Parse error code
+        if "PLANT_NOT_RECOGNIZED" in error_message:
+            return AnalyzeCropResponse(
+                success=False,
+                error="Could not identify plant in the image",
+                error_code="PLANT_NOT_RECOGNIZED"
+            )
+        elif "UNSUPPORTED_CROP" in error_message:
+            return AnalyzeCropResponse(
+                success=False,
+                error="Plant identified but not a supported crop",
+                error_code="UNSUPPORTED_CROP"
+            )
+        elif "PLANT_ID_API_ERROR" in error_message:
+            return AnalyzeCropResponse(
+                success=False,
+                error="External Plant.id API error",
+                error_code="PLANT_ID_API_ERROR"
+            )
+        else:
+            return AnalyzeCropResponse(
+                success=False,
+                error="Failed to analyze crop image",
+                error_code="ANALYSIS_ERROR"
+            )
