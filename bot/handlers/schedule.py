@@ -13,6 +13,7 @@ from states.irrigation import IrrigationStates
 from services.api_client import api_client
 from keyboards.inline import get_back_to_menu_keyboard
 from utils.language import get_user_language, set_user_language, get_text
+from utils.regions import get_region_coordinates, get_water_coefficient
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ async def handle_text_date(message: Message, state: FSMContext):
     if not parsed_date:
         await message.answer(
             get_text("date_invalid", user_lang),
+            reply_markup=get_back_to_menu_keyboard(user_lang),
             parse_mode="HTML"
         )
         return
@@ -105,6 +107,7 @@ async def handle_text_date(message: Message, state: FSMContext):
     if days_diff > 7:
         await message.answer(
             get_text("date_too_far", user_lang),
+            reply_markup=get_back_to_menu_keyboard(user_lang),
             parse_mode="HTML"
         )
         return
@@ -112,6 +115,7 @@ async def handle_text_date(message: Message, state: FSMContext):
     if days_diff < 0:
         await message.answer(
             get_text("date_in_past", user_lang),
+            reply_markup=get_back_to_menu_keyboard(user_lang),
             parse_mode="HTML"
         )
         return
@@ -144,16 +148,21 @@ async def process_irrigation_date(
         # Get user language
         user_lang = await get_user_language(state)
 
-        # Get saved crop data
+        # Get saved crop data and region
         data = await state.get_data()
         crop_code = data.get("crop_code")
         growth_stage = data.get("growth_stage")
         crop_name_kg = data.get("crop_name_kg")
         crop_name_ru = data.get("crop_name_ru")
+        region = data.get("region", "chui")  # Default to Chui region
+
+        # Get region-specific parameters
+        water_coef = get_water_coefficient(region)
 
         if not crop_code or not growth_stage:
             await message.answer(
-                get_text("error_no_crop_data", user_lang)
+                get_text("error_no_crop_data", user_lang),
+                reply_markup=get_back_to_menu_keyboard(user_lang)
             )
             return
 
@@ -180,6 +189,7 @@ async def process_irrigation_date(
             error_msg = result.get("error", get_text("error_unknown", user_lang))
             await message.answer(
                 f"{get_text('error_occurred', user_lang)}\n\n{error_msg}",
+                reply_markup=get_back_to_menu_keyboard(user_lang),
                 parse_mode="HTML"
             )
             return
@@ -189,6 +199,9 @@ async def process_irrigation_date(
         days_until = result["days_until_water"]
         weather = result["weather"]
         recommendation = result["recommendation"]
+
+        # Apply regional water coefficient
+        adjusted_liters = int(recommendation['liters_per_sotka'] * water_coef)
 
         # Select crop name based on language
         crop_name = crop_name_kg if user_lang == "kg" else crop_name_ru
@@ -204,7 +217,7 @@ async def process_irrigation_date(
                 f"• Температура: {weather['temp_avg']}°C\n"
                 f"• Осадки: {weather['precipitation_mm']} мм\n"
                 f"• {weather['condition']}\n\n"
-                f"💦 <b>Объем воды:</b> {recommendation['liters_per_sotka']} литров/сотка\n"
+                f"💦 <b>Объем воды:</b> {adjusted_liters} литров/сотка\n"
                 f"🚨 <b>Срочность:</b> {recommendation['urgency_display']}\n"
                 f"🔄 <b>Следующий полив:</b> через {recommendation['next_watering_days']} дней\n\n"
                 f"<b>Совет:</b>\n{recommendation['message_ru']}"
@@ -219,7 +232,7 @@ async def process_irrigation_date(
                 f"• Температура: {weather['temp_avg']}°C\n"
                 f"• Жаан: {weather['precipitation_mm']} мм\n"
                 f"• {weather['condition']}\n\n"
-                f"💦 <b>Суу көлөмү:</b> {recommendation['liters_per_sotka']} литр/сотка\n"
+                f"💦 <b>Суу көлөмү:</b> {adjusted_liters} литр/сотка\n"
                 f"🚨 <b>Шашылыштык:</b> {recommendation['urgency_display']}\n"
                 f"🔄 <b>Кийинки суу:</b> {recommendation['next_watering_days']} күндөн кийин\n\n"
                 f"<b>Кеңеш:</b>\n{recommendation['message_kg']}"
@@ -257,5 +270,6 @@ async def process_irrigation_date(
         user_lang = await get_user_language(state)
         await message.answer(
             get_text("error_getting_recommendation", user_lang),
+            reply_markup=get_back_to_menu_keyboard(user_lang),
             parse_mode="HTML"
         )

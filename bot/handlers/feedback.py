@@ -70,19 +70,53 @@ async def handle_rating(callback: CallbackQuery, state: FSMContext):
 
     user_lang = await get_user_language(state)
 
+    from keyboards.inline import get_feedback_skip_keyboard
+
     await callback.answer()
     await callback.message.edit_text(
         get_text("feedback_comment_prompt", user_lang).format(stars="⭐" * rating),
+        reply_markup=get_feedback_skip_keyboard(user_lang),
         parse_mode="HTML"
     )
 
     await state.set_state(FeedbackStates.waiting_for_comment)
 
 
+@router.callback_query(FeedbackStates.waiting_for_comment, F.data == "skip_feedback_comment")
+async def skip_comment_callback(callback: CallbackQuery, state: FSMContext):
+    """
+    Skip comment and finish feedback (via callback button).
+
+    Args:
+        callback: Callback query
+        state: FSM context
+    """
+    data = await state.get_data()
+    rating = data.get("rating", 0)
+
+    # Log feedback (in production, save to database)
+    logger.info(
+        f"Feedback from {callback.from_user.id}: {rating} stars, no comment"
+    )
+
+    user_lang = await get_user_language(state)
+
+    from keyboards.inline import get_back_to_menu_keyboard
+
+    await callback.answer()
+    await callback.message.edit_text(
+        get_text("feedback_thanks", user_lang),
+        reply_markup=get_back_to_menu_keyboard(user_lang),
+        parse_mode="HTML"
+    )
+
+    await state.clear()
+
+
 @router.message(FeedbackStates.waiting_for_comment, Command("skip"))
 async def skip_comment(message: Message, state: FSMContext):
     """
-    Skip comment and finish feedback.
+    Skip comment and finish feedback (via command).
 
     Args:
         message: Incoming message
@@ -97,8 +131,12 @@ async def skip_comment(message: Message, state: FSMContext):
     )
 
     user_lang = await get_user_language(state)
+
+    from keyboards.inline import get_back_to_menu_keyboard
+
     await message.answer(
         get_text("feedback_thanks", user_lang),
+        reply_markup=get_back_to_menu_keyboard(user_lang),
         parse_mode="HTML"
     )
 
@@ -125,8 +163,12 @@ async def handle_comment(message: Message, state: FSMContext):
     )
 
     user_lang = await get_user_language(state)
+
+    from keyboards.inline import get_back_to_menu_keyboard
+
     await message.answer(
         get_text("feedback_thanks_detailed", user_lang),
+        reply_markup=get_back_to_menu_keyboard(user_lang),
         parse_mode="HTML"
     )
 

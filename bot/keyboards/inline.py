@@ -3,6 +3,7 @@ Inline keyboards for Telegram bot.
 """
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.language import get_text
+from utils.regions import REGIONS, get_region_display_name
 
 
 def get_main_menu_keyboard(lang: str = "kg") -> InlineKeyboardMarkup:
@@ -24,10 +25,16 @@ def get_main_menu_keyboard(lang: str = "kg") -> InlineKeyboardMarkup:
             text=get_text("btn_info", lang),
             callback_data="info"
         )],
-        [InlineKeyboardButton(
-            text=get_text("btn_change_lang", lang),
-            callback_data="change_lang"
-        )]
+        [
+            InlineKeyboardButton(
+                text=get_text("btn_change_lang", lang),
+                callback_data="change_lang"
+            ),
+            InlineKeyboardButton(
+                text=get_text("btn_change_region", lang),
+                callback_data="change_region"
+            )
+        ]
     ])
     return keyboard
 
@@ -87,6 +94,10 @@ def get_quick_date_keyboard(lang: str = "kg") -> InlineKeyboardMarkup:
         [InlineKeyboardButton(
             text=get_text("btn_custom", lang),
             callback_data="date_custom"
+        )],
+        [InlineKeyboardButton(
+            text=get_text("btn_back_to_menu", lang),
+            callback_data="back_to_menu"
         )]
     ])
     return keyboard
@@ -108,4 +119,60 @@ def get_back_to_menu_keyboard(lang: str = "kg") -> InlineKeyboardMarkup:
             callback_data="back_to_menu"
         )]
     ])
+    return keyboard
+
+
+def get_feedback_skip_keyboard(lang: str = "kg") -> InlineKeyboardMarkup:
+    """
+    Get keyboard for skipping feedback comment.
+
+    Args:
+        lang: Language code ('kg' or 'ru')
+
+    Returns:
+        InlineKeyboardMarkup: Feedback skip keyboard
+    """
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=get_text("btn_skip_comment", lang),
+            callback_data="skip_feedback_comment"
+        )],
+        [InlineKeyboardButton(
+            text=get_text("btn_back_to_menu", lang),
+            callback_data="back_to_menu"
+        )]
+    ])
+    return keyboard
+
+
+def get_region_keyboard(lang: str = "kg") -> InlineKeyboardMarkup:
+    """
+    Get region selection keyboard.
+
+    Args:
+        lang: Language code ('kg' or 'ru')
+
+    Returns:
+        InlineKeyboardMarkup: Region selection keyboard
+    """
+    # Create buttons for each region (2 per row)
+    buttons = []
+    region_list = list(REGIONS.keys())
+
+    for i in range(0, len(region_list), 2):
+        row = []
+        for j in range(2):
+            if i + j < len(region_list):
+                region_code = region_list[i + j]
+                region_info = REGIONS[region_code]
+                display_name = get_region_display_name(region_code, lang)
+                emoji = region_info.get("emoji", "")
+
+                row.append(InlineKeyboardButton(
+                    text=f"{emoji} {display_name}",
+                    callback_data=f"region_{region_code}"
+                ))
+        buttons.append(row)
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard

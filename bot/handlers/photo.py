@@ -46,8 +46,10 @@ async def handle_photo(message: Message, state: FSMContext):
         if photo.file_size and photo.file_size > MAX_SIZE:
             await processing_msg.delete()
             file_size_mb = photo.file_size / 1024 / 1024
+            from keyboards.inline import get_back_to_menu_keyboard
             await message.answer(
                 get_text("photo_too_large_details", user_lang).format(size=file_size_mb),
+                reply_markup=get_back_to_menu_keyboard(user_lang),
                 parse_mode="HTML"
             )
             return
@@ -63,8 +65,10 @@ async def handle_photo(message: Message, state: FSMContext):
         # Double-check actual size after download
         if len(photo_bytes) > MAX_SIZE:
             await processing_msg.delete()
+            from keyboards.inline import get_back_to_menu_keyboard
             await message.answer(
                 get_text("photo_too_large", user_lang),
+                reply_markup=get_back_to_menu_keyboard(user_lang),
                 parse_mode="HTML"
             )
             return
@@ -86,19 +90,24 @@ async def handle_photo(message: Message, state: FSMContext):
             error_msg = result.get("error", get_text("error_unknown", user_lang))
             error_code = result.get("error_code", "UNKNOWN")
 
+            from keyboards.inline import get_back_to_menu_keyboard
+
             if error_code == "PLANT_NOT_RECOGNIZED":
                 await message.answer(
                     get_text("plant_not_recognized", user_lang),
+                    reply_markup=get_back_to_menu_keyboard(user_lang),
                     parse_mode="HTML"
                 )
             elif error_code == "UNSUPPORTED_CROP":
                 await message.answer(
                     get_text("unsupported_crop", user_lang),
+                    reply_markup=get_back_to_menu_keyboard(user_lang),
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
                     get_text("error_generic", user_lang).format(error=error_msg),
+                    reply_markup=get_back_to_menu_keyboard(user_lang),
                     parse_mode="HTML"
                 )
             return
@@ -143,8 +152,10 @@ async def handle_photo(message: Message, state: FSMContext):
     except Exception as e:
         logger.error(f"Error processing photo: {e}", exc_info=True)
         user_lang = await get_user_language(state)
+        from keyboards.inline import get_back_to_menu_keyboard
         await message.answer(
             get_text("error_processing_photo", user_lang),
+            reply_markup=get_back_to_menu_keyboard(user_lang),
             parse_mode="HTML"
         )
 

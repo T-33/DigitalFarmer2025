@@ -10,7 +10,8 @@ from aiogram.fsm.context import FSMContext
 from keyboards.inline import (
     get_main_menu_keyboard,
     get_language_keyboard,
-    get_back_to_menu_keyboard
+    get_back_to_menu_keyboard,
+    get_region_keyboard
 )
 from states.irrigation import IrrigationStates
 from utils.language import get_user_language, set_user_language, get_text
@@ -29,9 +30,10 @@ async def cmd_start(message: Message, state: FSMContext):
         message: Incoming message
         state: FSM context
     """
-    # IMPORTANT: Get language BEFORE clearing state
+    # IMPORTANT: Get language and region BEFORE clearing state
     state_data = await state.get_data()
     saved_lang = state_data.get("language", "kg")
+    saved_region = state_data.get("region")
 
     # Clear state
     await state.clear()
@@ -40,18 +42,31 @@ async def cmd_start(message: Message, state: FSMContext):
     await set_user_language(state, saved_lang)
     user_lang = saved_lang
 
-    welcome_text = get_text("welcome", user_lang)
+    # Check if user has selected region
+    if not saved_region:
+        # First time user - ask for region
+        await message.answer(
+            get_text("select_region", user_lang),
+            reply_markup=get_region_keyboard(user_lang),
+            parse_mode="HTML"
+        )
+        logger.info(f"User {message.from_user.id} started the bot (new user)")
+    else:
+        # Restore region and show main menu
+        await state.update_data(region=saved_region)
 
-    await message.answer(
-        welcome_text,
-        reply_markup=get_main_menu_keyboard(user_lang),
-        parse_mode="HTML"
-    )
+        welcome_text = get_text("welcome", user_lang)
 
-    # Set state to waiting for photo
-    await state.set_state(IrrigationStates.waiting_for_photo)
+        await message.answer(
+            welcome_text,
+            reply_markup=get_main_menu_keyboard(user_lang),
+            parse_mode="HTML"
+        )
 
-    logger.info(f"User {message.from_user.id} started the bot with language: {user_lang}")
+        # Set state to waiting for photo
+        await state.set_state(IrrigationStates.waiting_for_photo)
+
+        logger.info(f"User {message.from_user.id} started the bot with language: {user_lang}, region: {saved_region}")
 
 
 @router.callback_query(F.data == "new_check")

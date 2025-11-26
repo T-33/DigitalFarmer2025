@@ -11,7 +11,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, BotCommandScopeDefault
 
 from config import config
-from handlers import start, photo, schedule, stats, help, feedback
+from handlers import start, photo, schedule, stats, help, feedback, region
 
 # Configure logging
 logging.basicConfig(
@@ -62,6 +62,7 @@ async def main():
 
     # Register routers (order matters - more specific handlers first)
     dp.include_router(start.router)
+    dp.include_router(region.router)
     dp.include_router(help.router)
     dp.include_router(feedback.router)
     dp.include_router(stats.router)
