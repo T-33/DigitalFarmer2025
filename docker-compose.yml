@@ -14,8 +14,8 @@ services:
       - API_VERSION=v1
       - DATABASE_URL=sqlite+aiosqlite:///./murab.db
       - ALLOWED_ORIGINS=http://localhost:3000,http://bot:3000
-      - MOCK_PLANT_ID=true
-      - MOCK_WEATHER=true
+      - MOCK_PLANT_ID=${MOCK_PLANT_ID:-false}
+      - MOCK_WEATHER=${MOCK_WEATHER:-false}
     volumes:
       - ./api:/app
       - api_data:/app/data

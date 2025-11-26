@@ -8,6 +8,7 @@ import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand, BotCommandScopeDefault
 
 from config import config
 from handlers import start, photo, schedule, stats, help, feedback
@@ -20,6 +21,35 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def set_bot_commands(bot: Bot):
+    """
+    Set bot commands menu for different languages.
+
+    Args:
+        bot: Bot instance
+    """
+    # Commands for Kyrgyz language
+    commands_kg = [
+        BotCommand(command="start", description="🌱 Башынан баштоо"),
+        BotCommand(command="help", description="❓ Жардам"),
+        BotCommand(command="stats", description="📊 Статистика"),
+        BotCommand(command="feedback", description="💬 Пикир калтыруу"),
+    ]
+
+    # Commands for Russian language
+    commands_ru = [
+        BotCommand(command="start", description="🌱 Начать заново"),
+        BotCommand(command="help", description="❓ Помощь"),
+        BotCommand(command="stats", description="📊 Статистика"),
+        BotCommand(command="feedback", description="💬 Оставить отзыв"),
+    ]
+
+    # Set default commands (Kyrgyz as default)
+    await bot.set_my_commands(commands_kg, scope=BotCommandScopeDefault())
+
+    logger.info("Bot commands menu set successfully!")
 
 
 async def main():
@@ -37,6 +67,9 @@ async def main():
     dp.include_router(stats.router)
     dp.include_router(photo.router)
     dp.include_router(schedule.router)
+
+    # Set bot commands menu
+    await set_bot_commands(bot)
 
     logger.info("Bot started successfully!")
     logger.info(f"Backend API URL: {config.api.base_url}")

@@ -29,15 +29,16 @@ async def cmd_start(message: Message, state: FSMContext):
         message: Incoming message
         state: FSM context
     """
+    # IMPORTANT: Get language BEFORE clearing state
+    state_data = await state.get_data()
+    saved_lang = state_data.get("language", "kg")
+
+    # Clear state
     await state.clear()
 
-    # Get user language (defaults to 'kg' if not set)
-    user_lang = await get_user_language(state)
-
-    # Set language if not set yet
-    if not await state.get_data():
-        await set_user_language(state, "kg")
-        user_lang = "kg"
+    # Restore language preference
+    await set_user_language(state, saved_lang)
+    user_lang = saved_lang
 
     welcome_text = get_text("welcome", user_lang)
 
@@ -50,7 +51,7 @@ async def cmd_start(message: Message, state: FSMContext):
     # Set state to waiting for photo
     await state.set_state(IrrigationStates.waiting_for_photo)
 
-    logger.info(f"User {message.from_user.id} started the bot")
+    logger.info(f"User {message.from_user.id} started the bot with language: {user_lang}")
 
 
 @router.callback_query(F.data == "new_check")
